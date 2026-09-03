@@ -95,6 +95,51 @@ cd Nextendo
 dotnet build src/Ryujinx/Ryujinx.csproj -c Release
 ```
 
+## MCP Server
+
+This build includes an integrated **MCP server** that exposes emulator controls over HTTP. Once a
+game is running, the server listens on:
+
+- **Endpoint:** `http://127.0.0.1:52773/mcp/`
+- **Protocol:** JSON-RPC 2.0
+- **Lifecycle:** starts when a game is loaded; stops when the emulator exits
+
+### Available tools
+
+| Tool | Description |
+|------|-------------|
+| `screenshot` | Capture the current game screen to PNG base64 |
+| `joystick_set` | Set joystick direction and hold duration in milliseconds |
+| `mouse_move` | Move the mouse to a given screen position |
+| `key_press` | Press or hold a Switch input button |
+| `touch_tap` | Tap the touchscreen at a coordinate |
+| `rumble` | Trigger controller rumble |
+| `game_state` | Get current game name, FPS, and resolution |
+
+### Example: list tools
+
+```sh
+curl -X POST http://127.0.0.1:52773/mcp/ \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+### Example: get game state
+
+```sh
+curl -X POST http://127.0.0.1:52773/mcp/ \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"game_state","arguments":{}}}'
+```
+
+### Example: joystick input for 300ms
+
+```sh
+curl -X POST http://127.0.0.1:52773/mcp/ \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"joystick_set","arguments":{"stick":"left","dx":-1.0,"dy":0.0,"durationMs":300}}}'
+```
+
 ## License
 
 Nextendo's own source is released under the **[PolyForm Shield License 1.0.0](LICENSE.md)** — a
