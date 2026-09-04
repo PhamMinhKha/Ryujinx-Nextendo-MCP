@@ -128,6 +128,7 @@ namespace Ryujinx.Ava.UI.Windows
 
         protected override void OnClosed(EventArgs e)
         {
+            McpServer.Stop();
             base.OnClosed(e);
             if (PlatformSettings != null)
             {
@@ -614,6 +615,8 @@ namespace Ryujinx.Ava.UI.Windows
                 SwitchToGameControl,
                 SetMainContent,
                 this);
+
+            McpServer.Start(ViewModel);
 
             ApplicationLibrary.ApplicationCountUpdated += ApplicationLibrary_ApplicationCountUpdated;
             _appLibraryAppsSubscription?.Dispose();

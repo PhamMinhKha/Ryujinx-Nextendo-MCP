@@ -238,6 +238,12 @@
                     Header="{ext:Locale Dialog_Nextendo_MenuBarReport}"
                     Icon="{ext:Icon fa-solid fa-bug}" />
             </MenuItem>
+            <MenuItem VerticalAlignment="Center" Header="MCP">
+                <MenuItem
+                    Name="McpStatusMenuItem"
+                    Header="MCP Status &amp; URL"
+                    Icon="{ext:Icon fa-solid fa-plug}" />
+            </MenuItem>
             <MenuItem VerticalAlignment="Center" Header="{ext:Locale MenuBarView}">
                 <MenuItem
                     Command="{Binding ToggleShowConsole}"

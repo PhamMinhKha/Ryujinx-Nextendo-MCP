@@ -141,6 +141,9 @@ namespace Ryujinx.Ava.Systems
         public ulong ApplicationId { get; private set; }
         public bool ScreenshotRequested { get; set; }
 
+        // Raised when a screenshot frame was captured (used by the MCP server).
+        public event EventHandler<ScreenCaptureImageInfo> ScreenshotCaptured;
+
         public AppHost(
             RendererHost renderer,
             InputManager inputManager,
@@ -394,6 +397,8 @@ namespace Ryujinx.Ava.Systems
 
         private void Renderer_ScreenCaptured(object sender, ScreenCaptureImageInfo e)
         {
+            ScreenshotCaptured?.Invoke(this, e);
+
             if (e.Data.Length > 0 && e.Height > 0 && e.Width > 0)
             {
                 Task.Run(() =>
@@ -1333,6 +1338,8 @@ namespace Ryujinx.Ava.Systems
 
             NpadManager.Update(ConfigurationState.Instance.Graphics.AspectRatio.Value.ToFloat());
 
+            McpServer.FrameTick();
+
             if (_viewModel.IsActive)
             {
                 bool isCursorVisible = true;
@@ -1455,12 +1462,12 @@ namespace Ryujinx.Ava.Systems
                 }
 
                 _prevHotkeyState = currentHotkeyState;
+            }
 
-                if (ScreenshotRequested)
-                {
-                    ScreenshotRequested = false;
-                    _renderer.Screenshot();
-                }
+            if (ScreenshotRequested)
+            {
+                ScreenshotRequested = false;
+                _renderer.Screenshot();
             }
 
             // Touchscreen.

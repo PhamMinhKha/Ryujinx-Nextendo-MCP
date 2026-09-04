@@ -5,6 +5,7 @@ using Avalonia.Threading;
 using Gommon;
 using LibHac.Common;
 using LibHac.Ns;
+using Ryujinx.Ava.Common;
 using Ryujinx.Ava.Common.Locale;
 using Ryujinx.Ava.Systems.AppLibrary;
 using Ryujinx.Ava.Systems.Configuration;
@@ -59,6 +60,7 @@ namespace Ryujinx.Ava.UI.Views.Main
             AboutWindowMenuItem.Command = Commands.Create(AboutView.Show);
             CompatibilityListMenuItem.Command = Commands.Create(() => CompatibilityListWindow.Show());
             LdnGameListMenuItem.Command = Commands.Create(() => LdnGamesListWindow.Show());
+            McpStatusMenuItem.Command = Commands.Create(ShowMcpStatus);
 
             UpdateMenuItem.Command = MainWindowViewModel.UpdateCommand;
 
@@ -193,14 +195,28 @@ namespace Ryujinx.Ava.UI.Views.Main
             }
         }
 
+        private async Task ShowMcpStatus()
+        {
+            string url = "http://127.0.0.1:52773/mcp/";
+            string status = McpServer.IsRunning ? "✅ Đang hoạt động" : "⛔ Đang tắt";
+            string detail = McpServer.IsRunning
+                ? $"Server đang lắng nghe tại:\n{url}\n\nTools có sẵn: game_state, screenshot, list_games, load_game, key_press, joystick_set, touch_tap, mouse_move, rumble"
+                : "MCP server chưa khởi động.\n\nĐịa chỉ sẽ là:\n" + url;
+
+            await ContentDialogHelper.CreateInfoDialog(
+                status,
+                detail,
+                LocaleManager.Instance[LocaleKeys.InputDialogOk],
+                string.Empty,
+                "MCP Server");
+        }
+
         private void ChangeWindowSize(string resolution)
         {
             (int resolutionWidth, int resolutionHeight) = resolution.Split(' ', 2)
                 .Into(parts =>
                     (int.Parse(parts[0]), int.Parse(parts[1]))
                 );
-
-            // Correctly size window when 'TitleBar' is enabled (Nov. 14, 2024)
             double barsHeight = ((Window.StatusBarHeight + Window.MenuBarHeight) +
                 (ConfigurationState.Instance.ShowOldUI ? (int)Window.TitleBar.Height : 0));
 
