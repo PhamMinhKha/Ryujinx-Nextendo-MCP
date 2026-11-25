@@ -9,6 +9,7 @@ using Ryujinx.Ava.UI.Helpers;
 using Ryujinx.Ava.UI.ViewModels;
 using Ryujinx.Ava.UI.Windows;
 using Ryujinx.Common;
+using Ryujinx.Common.Logging;
 using Ryujinx.HLE;
 using Ryujinx.HLE.HOS.Applets;
 using Ryujinx.HLE.HOS.Applets.SoftwareKeyboard;
@@ -231,12 +232,29 @@ namespace Ryujinx.Ava.UI.Applet
         public bool DisplayErrorAppletDialog(string title, string message, string[] buttons,
             (uint Module, uint Description)? errorCode = null)
         {
+            // Online / NEX communication failures (modules 2306/2307/2618) used to be rewritten
+            // into a Nextendo "create a profile" nag. Without Nextendo, auto-dismiss them so the
+            // game can continue offline instead of blocking on "An error has occured".
+            if (errorCode is { Module: 2306 or 2307 or 2618 })
+            {
+                Logger.Info?.Print(LogClass.Application,
+                    $"[Nextendo] suppressed online ErrorApplet {errorCode.Value.Module}-{errorCode.Value.Description:0000}");
+                return false;
+            }
+
+            // Fallback firmware text when no localized DlgMsg exists — same class of online fail.
+            if (!string.IsNullOrEmpty(message) &&
+                message.Contains("An error has occured", StringComparison.OrdinalIgnoreCase) &&
+                !Ryujinx.Common.Configuration.NextendoAccount.IsLinked)
+            {
+                Logger.Info?.Print(LogClass.Application,
+                    "[Nextendo] suppressed generic online ErrorApplet (no linked profile)");
+                return false;
+            }
+
             ManualResetEvent dialogCloseEvent = new(false);
 
             bool showDetails = false;
-
-            // [Nextendo] Online-error rewrite (incl. "No online profile yet…") disabled —
-            // keep the game's own communication-error dialog instead of a Nextendo nag.
 
             Dispatcher.UIThread.InvokeAsync(async () =>
             {
