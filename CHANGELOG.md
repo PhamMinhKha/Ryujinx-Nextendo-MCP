@@ -2,6 +2,19 @@
 
 All updates to this Ryujinx branch will be documented in this file.
 
+## Ryujinx-MCP / Nextendo local - 2026-11-25
+
+### MCP:
+- If port `52773` is busy, the HTTP JSON-RPC server tries the next ports (up to 32) and exposes the real `EndpointUrl` / `BoundPort`.
+- Help ▸ MCP status shows the bound URL instead of always assuming `52773`.
+
+### Nextendo (local / non-Network use):
+- Disable pre-launch “online won’t work” / gate dialogs so File ▸ Open is not blocked for players without a Nextendo profile.
+- Disable mandatory-update popup, session heartbeat, and profile heal on startup.
+- Skip first-run wizard and “what’s new” modals at launch (flags marked quietly; wizard still available from Settings ▸ Nextendo).
+- Soften Nextendo-specific online error rewriting so generic game error dialogs are used when Nextendo Network is unused.
+- Online stays off when there is no linked profile or the title version is incompatible; we just stop nagging about it.
+
 ## [1.3.2](<https://git.ryujinx.app/ryubing/ryujinx/-/releases/1.3.2>) - 2025-06-09
 
 ## [1.3.1](<https://git.ryujinx.app/ryubing/ryujinx/-/releases/1.3.1>) - 2025-04-23

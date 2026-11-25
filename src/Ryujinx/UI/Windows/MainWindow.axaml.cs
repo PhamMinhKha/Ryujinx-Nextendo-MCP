@@ -155,35 +155,8 @@ namespace Ryujinx.Ava.UI.Windows
 
             Executor.ExecuteBackgroundAsync(async () =>
             {
-                // [Nextendo] Warm the remote gate at startup, then ENFORCE the mandatory update:
-                // if this build is older than the required version, the emulator cannot be used
-                // until it's updated — a blocking popup points to the download (GitHub release)
-                // and quits. Server unreachable => Evaluate() is Unreachable (not UpdateRequired),
-                // so offline use still works; only a CONFIRMED outdated version hard-blocks.
-                await Ryujinx.Ava.Common.NextendoBeta.RefreshAsync();
-                if (Ryujinx.Ava.Common.NextendoBeta.Evaluate() == Ryujinx.Ava.Common.NextendoBeta.BlockReason.UpdateRequired)
-                {
-                    await Dispatcher.UIThread.InvokeAsync(Ryujinx.Ava.Common.NextendoUpdate.ShowMandatoryUpdateAsync);
-                    return;
-                }
-
-                // [Nextendo] Heartbeat de session : tant que l'app tourne avec un compte lié, on
-                // rafraîchit la session "connecté" du compte pour qu'elle apparaisse sur le site.
-                _ = System.Threading.Tasks.Task.Run(async () =>
-                {
-                    while (true)
-                    {
-                        await Ryujinx.Ava.Common.NextendoApi.TouchSessionAsync();
-                        await System.Threading.Tasks.Task.Delay(System.TimeSpan.FromMinutes(2));
-                    }
-                });
-
-                // [Nextendo] Heal a link that predates the profile binding (or a login path
-                // that skipped it): bind the linked account to the active local profile so the
-                // pseudo / avatar / Mii + "N" badge follow the account and the in-game name
-                // matches the identity. Runs on the UI thread; no-op when nothing needs healing.
-                await Dispatcher.UIThread.InvokeAsync(
-                    Ryujinx.Ava.UI.Views.Main.MainMenuBarView.HealNextendoProfileAsync);
+                // [Nextendo] Startup remote gate / mandatory-update popup disabled for local use.
+                // A forced quit to Nextendo Network releases is not wanted when Nextendo is unused.
 
                 await ShowIntelMacWarningAsync();
                 if (CommandLineState.FirmwareToInstallPathArg.TryGet(out FilePath fwPath))
@@ -393,59 +366,17 @@ namespace Ryujinx.Ava.UI.Windows
 
         private async Task CheckLaunchState()
         {
-            // [Nextendo] First-launch quick-start (fresh install) and the "what's new" popup (first
-            // launch after an update) both need the main window loaded before a modal can open, so
-            // handle them together. A fresh install shows the wizard only; an existing install that
-            // just updated shows the condensed patch notes once.
-            bool firstRun = NextendoFirstRunWindow.IsFirstRun();
-            bool showPatchNotes = !firstRun && Ryujinx.Ava.Common.NextendoPatchNotes.ShouldShow();
-
-            if (firstRun || showPatchNotes)
+            // [Nextendo] Startup wizard / "what's new" modals disabled — users who don't use
+            // Nextendo found them blocking every launch. Flags are still marked so the prompts
+            // stay quiet; the wizard remains available from Settings ▸ Nextendo if needed.
+            if (NextendoFirstRunWindow.IsFirstRun())
             {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    try
-                    {
-                        // ShowDialog needs this owner window fully loaded; CheckLaunchState can run
-                        // before that, so wait for Loaded first (otherwise the modal throws and the
-                        // dialog silently never appears).
-                        if (!IsLoaded)
-                        {
-                            System.Threading.Tasks.TaskCompletionSource ready = new();
-                            void OnLoaded(object s, Avalonia.Interactivity.RoutedEventArgs e)
-                            {
-                                Loaded -= OnLoaded;
-                                ready.TrySetResult();
-                            }
+                NextendoFirstRunWindow.MarkDoneQuiet();
+            }
 
-                            Loaded += OnLoaded;
-                            if (IsLoaded)
-                            {
-                                Loaded -= OnLoaded;
-                                ready.TrySetResult();
-                            }
-
-                            await ready.Task;
-                        }
-
-                        if (firstRun)
-                        {
-                            await new NextendoFirstRunWindow().ShowDialog(this);
-
-                            // Fresh install: seed the patch-note flag so the wizard isn't immediately
-                            // followed by a "what's new" for a version this install never had before.
-                            Ryujinx.Ava.Common.NextendoPatchNotes.MarkShown();
-                        }
-                        else
-                        {
-                            await Ryujinx.Ava.Common.NextendoPatchNotes.ShowAsync();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Warning?.Print(LogClass.UI, $"[Nextendo] first-run / patch-note popup failed: {ex.Message}");
-                    }
-                });
+            if (Ryujinx.Ava.Common.NextendoPatchNotes.ShouldShow())
+            {
+                Ryujinx.Ava.Common.NextendoPatchNotes.MarkShown();
             }
 
             if (OperatingSystem.IsLinux() && LinuxHelper.VmMaxMapCount < LinuxHelper.RecommendedVmMaxMapCount)

@@ -1,4 +1,5 @@
-// Nextendo MCP server — HTTP JSON-RPC 2.0 at http://127.0.0.1:52773/mcp/
+// Nextendo MCP server — HTTP JSON-RPC 2.0 at http://127.0.0.1:<port>/mcp/
+// Default port 52773; if busy, tries the next ports automatically.
 // Tools: game_state, emulator_state, screenshot, list_games, load_game,
 //        key_press, joystick_set, touch_tap, mouse_move, rumble.
 using System;
@@ -21,13 +22,15 @@ namespace Ryujinx.Ava.Common
 {
     public static class McpServer
     {
-        private const int Port = 52773;
+        private const int DefaultPort = 52773;
+        private const int MaxPortAttempts = 32;
         private const int PanelWidth = 1280;
         private const int PanelHeight = 720;
 
         private static HttpListener _listener;
         private static CancellationTokenSource _cts;
         private static MainWindowViewModel _vm;
+        private static int _boundPort = DefaultPort;
 
         // Virtual input state.
         private static ControllerKeys _heldButtons;
@@ -36,22 +39,63 @@ namespace Ryujinx.Ava.Common
 
         public static bool IsRunning => _listener?.IsListening == true;
 
+        /// <summary>Port actually bound after Start (may be higher than the default if that one was busy).</summary>
+        public static int BoundPort => _boundPort;
+
+        public static string EndpointUrl => $"http://127.0.0.1:{_boundPort}/mcp/";
+
         public static void Start(MainWindowViewModel vm)
         {
-            try
+            _vm = vm;
+
+            Exception lastError = null;
+
+            for (int attempt = 0; attempt < MaxPortAttempts; attempt++)
             {
-                _vm = vm;
-                _listener = new HttpListener();
-                _listener.Prefixes.Add($"http://127.0.0.1:{Port}/mcp/");
-                _listener.Start();
-                _cts = new CancellationTokenSource();
-                _ = Task.Run(() => AcceptLoop(_cts.Token));
-                Logger.Info?.Print(LogClass.Application, $"[MCP] Server listening on http://127.0.0.1:{Port}/mcp/");
+                int port = DefaultPort + attempt;
+                HttpListener listener = null;
+
+                try
+                {
+                    listener = new HttpListener();
+                    listener.Prefixes.Add($"http://127.0.0.1:{port}/mcp/");
+                    listener.Start();
+
+                    _listener = listener;
+                    _boundPort = port;
+                    _cts = new CancellationTokenSource();
+                    _ = Task.Run(() => AcceptLoop(_cts.Token));
+
+                    if (attempt > 0)
+                    {
+                        Logger.Warning?.Print(LogClass.Application,
+                            $"[MCP] Port {DefaultPort} was busy — listening on {EndpointUrl} instead");
+                    }
+                    else
+                    {
+                        Logger.Info?.Print(LogClass.Application, $"[MCP] Server listening on {EndpointUrl}");
+                    }
+
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+
+                    try
+                    {
+                        listener?.Stop();
+                        listener?.Close();
+                    }
+                    catch { /* ignore cleanup failures */ }
+
+                    Logger.Warning?.Print(LogClass.Application,
+                        $"[MCP] Port {port} unavailable ({ex.Message}), trying {port + 1}…");
+                }
             }
-            catch (Exception ex)
-            {
-                Logger.Error?.Print(LogClass.Application, $"[MCP] Failed to start: {ex.Message}");
-            }
+
+            Logger.Error?.Print(LogClass.Application,
+                $"[MCP] Failed to start after {MaxPortAttempts} ports ({DefaultPort}–{DefaultPort + MaxPortAttempts - 1}): {lastError?.Message}");
         }
 
         public static void Stop()

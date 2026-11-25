@@ -197,11 +197,11 @@ namespace Ryujinx.Ava.UI.Views.Main
 
         private async Task ShowMcpStatus()
         {
-            string url = "http://127.0.0.1:52773/mcp/";
+            string url = McpServer.IsRunning ? McpServer.EndpointUrl : "http://127.0.0.1:52773/mcp/";
             string status = McpServer.IsRunning ? "✅ Đang hoạt động" : "⛔ Đang tắt";
             string detail = McpServer.IsRunning
                 ? $"Server đang lắng nghe tại:\n{url}\n\nTools có sẵn: game_state, screenshot, list_games, load_game, key_press, joystick_set, touch_tap, mouse_move, rumble"
-                : "MCP server chưa khởi động.\n\nĐịa chỉ sẽ là:\n" + url;
+                : "MCP server chưa khởi động.\n\nĐịa chỉ mặc định (tự tăng nếu bận):\n" + url;
 
             await ContentDialogHelper.CreateInfoDialog(
                 status,

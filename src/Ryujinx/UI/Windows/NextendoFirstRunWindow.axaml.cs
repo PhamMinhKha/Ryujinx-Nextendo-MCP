@@ -548,6 +548,9 @@ namespace Ryujinx.Ava.UI.Windows
             return new NextendoFirstRunWindow().ShowDialog(owner);
         }
 
+        /// <summary>Records wizard completion without showing UI (used when Nextendo prompts are skipped).</summary>
+        public static void MarkDoneQuiet() => MarkDone();
+
         private static void MarkDone()
         {
             try

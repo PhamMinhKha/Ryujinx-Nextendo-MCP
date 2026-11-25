@@ -1943,88 +1943,14 @@ namespace Ryujinx.Ava.UI.ViewModels
                 }
             }
 
-            // [Nextendo] Pre-launch online gate. Online presents the anonymous NEX id
-            // (NetworkServiceAccountId => 0xcafe, which the gated server refuses) — i.e. online
-            // is BLOCKED, not just warned — when ANY of these hold:
-            //   - the remote beta kill-switch is active / unreachable / this app version is too
-            //     old (D5, FAIL CLOSED — no answer = blocked);
-            //   - this title is on a version the server doesn't support;
-            //   - no online profile exists yet (a guest profile counts as linked).
-            // Surface the reason(s) in a single dialog; offline play is never affected.
-            // [Nextendo] En mode « serveur personnalisé », toute cette porte saute : elle
-            // interroge NOTRE serveur (interrupteur d'arrêt, version supportée) et exige un
-            // compte chez NOUS. Quelqu'un qui joue sur son propre serveur n'a rien à voir avec
-            // ces conditions, et les lui appliquer reviendrait à l'empêcher de jouer au nom
-            // d'un service qu'il a justement désactivé.
+            // [Nextendo] Pre-launch online gate / "online won't work" modal disabled.
+            // Players who don't use Nextendo were blocked by this dialog on every File ▸ Open.
+            // Online remains off when there is no linked profile; we just don't nag about it.
             if (application.IsNextendoCompatible && !NextendoServerOverride.HorsNextendo)
             {
-                // Evaluate the gate FRESH every launch — OnlineBlocked is runtime-only, so reset
-                // it first or a stale "blocked" from a previous launch (or a since-created guest)
-                // would wrongly keep online off.
-                Ryujinx.Common.Configuration.NextendoAccount.OnlineBlocked = false;
-
-                // First online launch: await one poll so we don't FAIL CLOSED against an
-                // up-and-running server just because we hadn't asked it yet.
-                if (!Ryujinx.Ava.Common.NextendoBeta.HasPolled)
-                {
-                    await Ryujinx.Ava.Common.NextendoBeta.RefreshAsync();
-                }
-
-                Ryujinx.Ava.Common.NextendoBeta.BlockReason remote = Ryujinx.Ava.Common.NextendoBeta.Evaluate();
-                bool versionBad = !application.IsNextendoVersionOk;
-
                 Ryujinx.Common.Configuration.NextendoAccount.OnlineBlocked =
-                    remote != Ryujinx.Ava.Common.NextendoBeta.BlockReason.None || versionBad;
-
-                // Refresh the remote config for the NEXT launch (a flipped kill-switch applies then).
-                _ = Ryujinx.Ava.Common.NextendoBeta.RefreshAsync();
-
-                if (remote != Ryujinx.Ava.Common.NextendoBeta.BlockReason.None)
-                {
-                    // Hard remote block (kill-switch / update required / servers unreachable):
-                    // online can't work at all. State it plainly (Nintendo-style) and let the
-                    // player continue offline.
-                    await ContentDialogHelper.CreateInfoDialog(
-                        LocaleManager.Instance[LocaleKeys.Dialog_Nextendo_OnlineUnavailableTitle],
-                        Ryujinx.Ava.Common.NextendoBeta.Message(remote),
-                        LocaleManager.Instance[LocaleKeys.InputDialogOk],
-                        string.Empty,
-                        "Nextendo Network");
-                }
-                else
-                {
-                    System.Collections.Generic.List<string> problems = [];
-
-                    if (versionBad)
-                    {
-                        problems.Add("• " + LocaleManager.GetFormatted(
-                            LocaleKeys.Dialog_Nextendo_OnlineProblemVersion,
-                            application.Version, application.NextendoCompatibleVersion));
-                    }
-
-                    if (!Ryujinx.Common.Configuration.NextendoAccount.IsLinked)
-                    {
-                        problems.Add("• " + LocaleManager.Instance[LocaleKeys.Dialog_Nextendo_OnlineProblemNoProfile]);
-                    }
-
-                    if (problems.Count > 0)
-                    {
-                        UserResult onlineChoice = await ContentDialogHelper.CreateConfirmationDialog(
-                            LocaleManager.Instance[LocaleKeys.Dialog_Nextendo_OnlineWontWorkTitle],
-                            LocaleManager.Instance[LocaleKeys.Dialog_Nextendo_OnlineWontWorkBody] +
-                            "\n\n" + string.Join("\n\n", problems),
-                            LocaleManager.Instance[LocaleKeys.Dialog_Nextendo_OnlineLaunchAnyway],
-                            LocaleManager.Instance[LocaleKeys.Dialog_Nextendo_OnlineCancel],
-                            "Nextendo Network");
-
-                        // Cancel -> abort so the user can create a profile / install the right
-                        // version first. Launch anyway -> proceed offline.
-                        if (onlineChoice != UserResult.Yes)
-                        {
-                            return;
-                        }
-                    }
-                }
+                    !Ryujinx.Common.Configuration.NextendoAccount.IsLinked
+                    || !application.IsNextendoVersionOk;
             }
 
             // [Nextendo] Force-sync the online schedule (BCAT byaml) with the server on every launch
